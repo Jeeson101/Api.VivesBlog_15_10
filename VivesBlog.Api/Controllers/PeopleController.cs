@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using VivesBlog.Dtos.Requests;
 using VivesBlog.Services;
 
 namespace VivesBlog.Api.Controllers
 {
-    [Route("[controller]")]
+	[Authorize]
+	[Route("[controller]")]
     [ApiController]
     public class PeopleController(PersonService personService) : ControllerBase
     {

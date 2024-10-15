@@ -7,7 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Vives.Services.Model\Vives.Services.Model.csproj" />
+    <ProjectReference Include="..\VivesBlog.Configuration\VivesBlog.Configuration.csproj" />
     <ProjectReference Include="..\VivesBlog.Core\VivesBlog.Core.csproj" />
     <ProjectReference Include="..\VivesBlog.Dtos\VivesBlog.Dtos.csproj" />
   </ItemGroup>

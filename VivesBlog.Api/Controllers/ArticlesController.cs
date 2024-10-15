@@ -1,15 +1,18 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using VivesBlog.Dtos.Requests;
 using VivesBlog.Services;
 
 namespace VivesBlog.Api.Controllers
 {
+    [Authorize]
     [Route("[controller]")]
     [ApiController]
     public class ArticlesController(ArticleService articleService) : ControllerBase
     {
         private readonly ArticleService _articleService = articleService;
 
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> Find()
         {
@@ -17,6 +20,7 @@ namespace VivesBlog.Api.Controllers
             return Ok(result);
         }
 
+        [AllowAnonymous]
         [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id)
         {

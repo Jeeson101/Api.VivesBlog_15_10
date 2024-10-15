@@ -14,5 +14,15 @@
 
             return serviceResult;
         }
-    }
+
+        public static void LoginFailed(this ServiceResult serviceResult)
+        {
+	        serviceResult.Messages.Add(new ServiceMessage
+	        {
+		        Code = "LoginFailed",
+		        Message = "The login failed.",
+		        Type = ServiceMessageType.Info
+	        });
+        }
+	}
 }

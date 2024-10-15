@@ -6,8 +6,4 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Vives.Services.Model\Vives.Services.Model.csproj" />
-  </ItemGroup>
-
 </Project>

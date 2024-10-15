@@ -1,103 +1,139 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Vives.Presentation.Authentication;
+using VivesBlog.Dtos.Requests;
+using VivesBlog.Sdk;
 using VivesBlog.Ui.Mvc.Models;
 
 namespace VivesBlog.Ui.Mvc.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly SignInManager<IdentityUser> _signInManager;
-        private readonly UserManager<IdentityUser> _userManager;
+		private readonly IdentitySdk _identitySdk;
+		private readonly IBearerTokenStore _tokenStore;
 
-        public AccountController(
-            SignInManager<IdentityUser> signInManager,
-            UserManager<IdentityUser> userManager)
-        {
-            _signInManager = signInManager;
-            _userManager = userManager;
-        }
+		public AccountController(IdentitySdk identitySdk, IBearerTokenStore tokenStore)
+		{
+			_identitySdk = identitySdk;
+			_tokenStore = tokenStore;
+		}
 
-        [HttpGet]
-        public async Task<IActionResult> SignIn([FromQuery] string? returnUrl)
-        {
-            returnUrl ??= "/";
+		[HttpGet]
+		public async Task<IActionResult> SignIn([FromQuery] string? returnUrl)
+		{
+			returnUrl ??= "/";
 
-            await _signInManager.SignOutAsync();
+			await HttpContext.SignOutAsync();
+			_tokenStore.SetToken(string.Empty);
 
-            ViewBag.ReturnUrl = returnUrl;
-            return View();
-        }
+			ViewBag.ReturnUrl = returnUrl;
+			return View();
+		}
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SignIn([FromForm]SignInModel model, [FromQuery] string? returnUrl)
-        {
-            returnUrl ??= "/";
-            ViewBag.ReturnUrl = returnUrl;
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> SignIn([FromForm] SignInModel model, [FromQuery] string? returnUrl)
+		{
+			returnUrl ??= "/";
+			ViewBag.ReturnUrl = returnUrl;
 
-            if (!ModelState.IsValid)
-            {
-                return View();
-            }
+			if (!ModelState.IsValid)
+			{
+				return View();
+			}
 
-            var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, false);
+			var request = new SignInRequest
+			{
+				Username = model.Email,
+				Password = model.Password
+			};
+			var result = await _identitySdk.SignIn(request);
 
-            if (!result.Succeeded)
-            {
-                ModelState.AddModelError("", "Login failed.");
-                return View();
-            }
 
-            return LocalRedirect(returnUrl);
-        }
+			if (!result.IsSuccess || result.Token is null)
+			{
+				ModelState.AddModelError("", "Login failed.");
+				return View();
+			}
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout([FromQuery] string? returnUrl)
-        {
-            returnUrl ??= "/";
+			await InternalSignIn(model.Email, model.RememberMe);
+			_tokenStore.SetToken(result.Token);
 
-            await _signInManager.SignOutAsync();
+			return LocalRedirect(returnUrl);
+		}
 
-            return LocalRedirect(returnUrl);
-        }
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Logout([FromQuery] string? returnUrl)
+		{
+			returnUrl ??= "/";
 
-        [HttpGet]
-        public IActionResult Register([FromQuery] string? returnUrl)
-        {
-            returnUrl ??= "/";
+			await HttpContext.SignOutAsync();
+			_tokenStore.SetToken(string.Empty);
 
-            ViewBag.ReturnUrl = returnUrl;
-            return View();
-        }
+			return LocalRedirect(returnUrl);
+		}
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register([FromForm]RegisterModel model, [FromQuery]string? returnUrl)
-        {
-            returnUrl ??= "/";
-            ViewBag.ReturnUrl = returnUrl;
+		[HttpGet]
+		public IActionResult Register([FromQuery] string? returnUrl)
+		{
+			returnUrl ??= "/";
+			ViewBag.ReturnUrl = returnUrl;
+			return View();
+		}
 
-            if (!ModelState.IsValid)
-            {
-                return View(model);
-            }
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Register([FromForm] RegisterModel model, [FromQuery] string? returnUrl)
+		{
+			returnUrl ??= "/";
+			ViewBag.ReturnUrl = returnUrl;
 
-            var user = new IdentityUser(model.Email);
-            var result = await _userManager.CreateAsync(user, model.Password);
+			if (!ModelState.IsValid)
+			{
+				return View(model);
+			}
 
-            if (!result.Succeeded)
-            {
-                foreach (var error in result.Errors)
-                {
-                    ModelState.AddModelError("", error.Description);
-                }
-                return View(model);
-            }
+			var request = new RegisterRequest
+			{
+				Username = model.Email,
+				Password = model.Password
+			};
 
-            await _signInManager.SignInAsync(user, false);
+			var result = await _identitySdk.Register(request);
 
-            return LocalRedirect(returnUrl);
-        }
-    }
+			if (!result.IsSuccess || result.Token is null)
+			{
+				foreach (var error in result.Messages)
+				{
+					ModelState.AddModelError("", error.Message);
+				}
+				return View(model);
+			}
+
+			await InternalSignIn(model.Email);
+			_tokenStore.SetToken(result.Token);
+
+			return LocalRedirect(returnUrl);
+		}
+
+		private async Task InternalSignIn(string email, bool isPersistent = false)
+		{
+			var claims = new List<Claim>
+			{
+				new Claim(ClaimTypes.Name, email)
+			};
+
+			var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+			var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
+
+			await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, claimsPrincipal, new AuthenticationProperties
+			{
+				IsPersistent = isPersistent
+			});
+		}
+	}
 }
