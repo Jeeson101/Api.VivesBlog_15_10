@@ -1,0 +1,27 @@
+﻿@model ArticleResult
+
+<tr>
+    <td>@Model.PublishedDate.ToShortDateString() @Model.PublishedDate.ToShortTimeString()</td>
+    <td>
+        @if (!Model.AuthorId.HasValue)
+        {
+            @: No author
+        }
+        else
+        {
+            @:@Model.AuthorFirstName @Model.AuthorLastName
+        }
+    </td>
+    <td>@Model.Title</td>
+    <td>
+        <a class="btn btn-secondary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+        <button class="btn btn-danger"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
+                data-id="@Model.Id"
+                data-mode="delete"
+                data-title="@Model.Title">
+            Delete
+        </button>
+    </td>
+</tr>
